@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Основы железа для сисадмина</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: 16:9 stage (1280×720) scaled to the window; server-rack dark look, amber status-LED accent, live demos on every topic slide */
+:root{
+  --bg:#0e1416; --panel:#162024; --panel2:#1d2a2f; --line:#2b3b41;
+  --fg:#e7eef0; --muted:#93a6ac; --accent:#f3aa3c; --accent-ink:#1b1305;
+  --ok:#4fc58d; --bad:#f06262; --warn:#e8c547; --info:#62b6db;
+  --c1:#62b6db; --c2:#4fc58d; --c3:#c58ce8; --c4:#f3aa3c; --os:#55707a;
+  --f-display:'Unbounded','Segoe UI',sans-serif;
+  --f-body:'IBM Plex Sans','Segoe UI',Arial,sans-serif;
+  --f-mono:'JetBrains Mono',Consolas,'Courier New',monospace;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);overflow:hidden}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{height:100%;display:flex;flex-direction:column;padding-inline:16px}
+.viewport{flex:1;position:relative;overflow:hidden;min-height:0}
+.stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:center;background:var(--bg)}
+.bar{display:flex;align-items:center;gap:10px;padding-block:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));flex-wrap:wrap}
+.bar .count{font-family:var(--f-mono);color:var(--muted);font-size:14px;min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+.bar .ttl{color:var(--muted);font-size:14px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nbtn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:14px}
+.nbtn:hover{border-color:var(--accent)}
+.notesbox{position:absolute;left:0;right:0;bottom:0;max-height:40%;overflow:auto;background:var(--panel2);border-top:1px solid var(--line);padding:14px 18px;font-size:15px;line-height:1.5;z-index:5}
+.notesbox b{color:var(--accent)}
+.notesbox ul{margin:6px 0 0;padding-left:20px}
+
+/* slide */
+.slide{position:absolute;inset:0;padding:44px 64px 36px;display:none;flex-direction:column;gap:22px}
+.slide.active{display:flex}
+.eyebrow{font:600 14px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1,h2{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:38px;line-height:1.15;margin-top:10px}
+.lead{font-size:21px;color:var(--muted);line-height:1.45;margin:0;max-width:62ch}
+.body{flex:1;min-height:0;display:grid;gap:30px}
+.two{grid-template-columns:1fr 1.25fr}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.k{font-family:var(--f-mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+p{margin:0}
+.txt{font-size:20px;line-height:1.5}
+.txt b{color:var(--fg)}
+.list{margin:0;padding:0;list-style:none;display:grid;gap:12px;font-size:19px;line-height:1.4}
+.list li{display:grid;grid-template-columns:22px 1fr;gap:10px}
+.list li::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--accent);margin-top:9px;box-shadow:0 0 8px var(--accent)}
+.list.good li::before{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.list.badl li::before{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 15px;cursor:pointer;font-size:16px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.on{border-color:var(--accent);color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+.pill::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.pill.ok{color:var(--ok)} .pill.bad{color:var(--bad)} .pill.warn{color:var(--warn)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.note{font-size:15px;color:var(--muted)}
+.key{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:19px;line-height:1.45}
+.key b{color:var(--accent)}
+.pkt{position:absolute;left:0;top:0;width:14px;height:14px;border-radius:50%;z-index:3;pointer-events:none}
+
+/* title */
+.title-wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:40px;align-items:center;flex:1}
+.title-wrap h1{font-size:58px;line-height:1.08}
+.title-wrap h1 em{font-style:normal;color:var(--accent)}
+.rack{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:8px}
+.unit{height:38px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;gap:8px;padding:0 12px}
+.unit .slot{flex:1;height:10px;border-radius:3px;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.led{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);animation:blink 1.6s infinite}
+.led.a{background:var(--accent);box-shadow:0 0 6px var(--accent);animation-duration:.9s}
+@keyframes blink{50%{opacity:.25}}
+.agenda{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.agenda .panel{display:grid;gap:8px}
+.agenda .num{font:600 15px var(--f-mono);color:var(--accent)}
+.agenda .nm{font-size:22px;font-weight:600}
+.agenda .mn{font-size:15px;color:var(--muted)}
+
+/* flow (slide 3) */
+.flow{position:relative;height:250px}
+.fbox{position:absolute;top:30px;width:290px;height:160px;border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:16px 18px;display:grid;align-content:start;gap:6px}
+.fbox .nm{font-size:22px;font-weight:600}
+.fbox .ds{font-size:16px;color:var(--muted);line-height:1.35}
+.fbox.srv{border-color:var(--accent)}
+.arrow{position:absolute;top:110px;height:2px;background:var(--line)}
+.arrow span{position:absolute;top:-28px;left:50%;transform:translateX(-50%);font:13px var(--f-mono);color:var(--muted);white-space:nowrap}
+
+/* office (slide 4) */
+.office{position:relative;width:700px;height:440px}
+.office svg{position:absolute;inset:0}
+.pc{position:absolute;left:10px;width:200px;height:110px;border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:12px 14px;cursor:pointer;text-align:left;display:grid;align-content:start;gap:4px}
+.pc:hover{border-color:var(--accent)}
+.pc .nm{font-size:20px;font-weight:600}
+.pc .st{font-size:14px;color:var(--muted);min-height:20px}
+.pc.broken{border-color:var(--bad);opacity:.7}
+.pc.broken .nm::after{content:" · сломан";color:var(--bad);font-size:14px}
+.server{position:absolute;left:470px;top:150px;width:220px;height:140px;border-radius:12px;background:var(--panel);border:1px solid var(--accent);padding:14px 16px;display:grid;align-content:start;gap:8px}
+.server .nm{font-size:22px;font-weight:600;display:flex;align-items:center;gap:10px}
+.server.off{border-color:var(--bad)}
+.server.off .led{background:var(--bad);box-shadow:none;animation:none}
+.server.hit{box-shadow:0 0 0 3px var(--accent)}
+
+/* lanes (slide 5) */
+.comps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.comp{display:grid;gap:4px}
+.comp .nm{font-size:21px;font-weight:600}
+.comp .sp{font:600 30px var(--f-mono);color:var(--accent)}
+.lane{display:grid;grid-template-columns:150px 1fr 170px;gap:14px;align-items:center}
+.lane .lbl{font-size:18px;font-weight:600}
+.track{position:relative;height:34px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}
+.clip{position:absolute;left:0;top:0;bottom:0;width:0;overflow:hidden}
+.segs{position:absolute;left:0;top:0;bottom:0;display:flex}
+.seg-w{background:repeating-linear-gradient(135deg,#3a4d54 0 6px,#2a393e 6px 12px)}
+.seg-c{background:var(--accent);min-width:4px}
+.res{font:600 17px var(--f-mono)}
+.legend{display:flex;gap:20px;font-size:15px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:16px;height:12px;border-radius:2px;vertical-align:-1px;margin-right:6px}
+
+/* power (slide 6) */
+.cells{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.cell{height:34px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);transition:background .25s,opacity .25s}
+.cell.f1{background:var(--c1)} .cell.f2{background:var(--c2)} .cell.f3{background:var(--c3)} .cell.f4{background:var(--os)}
+
+/* swap (slide 7) */
+.membar{position:relative;height:56px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);display:flex;overflow:hidden}
+.mseg{height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#0e1416;border-right:2px solid var(--bg);white-space:nowrap;overflow:hidden;transition:width .35s}
+.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.app-b{display:grid;gap:4px;text-align:left;padding:12px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+.app-b:hover{border-color:var(--accent)}
+.app-b .nm{font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px}
+.app-b .nm i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.app-b .st{font-size:14px;color:var(--muted)}
+.log{font-size:16px;line-height:1.4;min-height:46px;color:var(--fg)}
+
+/* cores (slide 8) */
+.clane{display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:center}
+.cflow{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center}
+.q{display:flex;gap:6px;flex-wrap:wrap;min-height:44px;padding:6px;border-radius:8px;border:1px dashed var(--line)}
+.chip{width:32px;height:32px;border-radius:6px;display:grid;place-items:center;font:600 13px var(--f-mono);color:#0e1416}
+.cores{display:grid;gap:8px}
+.core{width:110px;height:44px;border-radius:8px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:var(--muted)}
+
+/* HT (slide 9) */
+.tl{display:grid;grid-template-columns:150px repeat(12,1fr);gap:4px;align-items:center;position:relative}
+.tl .lbl{font-size:16px;font-weight:600}
+.slot{height:34px;border-radius:4px;display:grid;place-items:center;font:600 12px var(--f-mono);color:#0e1416}
+.s-A{background:var(--c1)} .s-B{background:var(--c3)} .s-W{background:repeating-linear-gradient(135deg,#3a4d54 0 6px,#2a393e 6px 12px);color:var(--muted)} .s-idle{background:transparent;border:1px dashed var(--line)}
+.tlwrap{position:relative;display:grid;gap:8px}
+.playhead{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--accent);box-shadow:0 0 10px var(--accent);left:150px;opacity:0}
+
+/* hdd (slide 10) */
+#platter{width:400px;height:400px;max-width:100%}
+.stat{display:grid;gap:2px}
+.stat .v{font:600 40px var(--f-mono);color:var(--accent)}
+.stat .l{font-size:15px;color:var(--muted)}
+
+/* compare (slide 11) */
+.cmp{grid-template-columns:repeat(3,1fr)}
+.cmp .panel{display:grid;gap:12px;align-content:start}
+.cmp .nm{font-size:24px;font-weight:600}
+.cmp .sub{font-size:15px;color:var(--muted)}
+.mbar{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+.mbar .t{height:12px;border-radius:3px;background:var(--panel2);overflow:hidden}
+.mbar .t span{display:block;height:100%;background:var(--info)}
+.mbar.r .t span{background:var(--accent)}
+.pc-ul{margin:0;padding-left:20px;font-size:16px;line-height:1.45}
+
+/* raid diagram (slide 12) */
+.rdiag{display:grid;justify-items:center;gap:14px}
+.rnode{padding:12px 20px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:19px;font-weight:600;text-align:center}
+.rnode.ctl{border-color:var(--accent);color:var(--accent)}
+.rv{width:2px;height:18px;background:var(--line)}
+.rdisks{display:flex;gap:12px}
+.rdisk{width:92px;padding:10px 0;border-radius:8px;background:var(--panel2);border:1px solid var(--line);text-align:center;font-size:15px}
+.seen{border:1.5px dashed var(--accent);border-radius:12px;padding:10px 18px;color:var(--accent);font-size:17px}
+
+/* raid sim (slide 13) */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{background:var(--panel);border:0;border-right:1px solid var(--line);padding:9px 14px;cursor:pointer;font-size:16px;font-weight:600}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.inp{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:600 17px var(--f-mono);color:var(--fg);width:150px;text-transform:uppercase}
+select.inp{width:auto;text-transform:none}
+.disks{display:flex;gap:12px;align-items:flex-start;justify-content:center;min-height:0}
+.disk{width:132px;border-radius:10px;background:var(--panel);border:1px solid var(--line);padding:8px;display:grid;gap:5px;cursor:pointer;position:relative}
+.disk:hover{border-color:var(--accent)}
+.disk .dh{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600}
+.disk .grp{font-size:12px;color:var(--muted);height:14px}
+.dc{height:30px;border-radius:5px;display:grid;place-items:center;font:600 16px var(--f-mono);background:var(--panel2);border:1px solid var(--line)}
+.dc.d{background:#1f3a47;border-color:#2e5668}
+.dc.p{background:#3d2f17;border-color:#6b5021;color:var(--accent)}
+.dc.q{background:#33213f;border-color:#5a3a70;color:var(--c3)}
+.dc.e{opacity:.35}
+.disk.dead{border-color:var(--bad)}
+.disk.dead .dc{opacity:.25}
+.disk.dead::after{content:"ОТКАЗ";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-14deg);font:700 18px var(--f-mono);color:var(--bad);border:2px solid var(--bad);padding:2px 8px;border-radius:6px;background:var(--bg)}
+.disk.rb::after{content:"РЕБИЛД";color:var(--warn);border-color:var(--warn)}
+.disk .cap{font-size:12px;color:var(--muted);text-align:center}
+.word{display:flex;gap:6px}
+.wc{width:40px;height:44px;border-radius:7px;display:grid;place-items:center;font:700 22px var(--f-mono);background:var(--panel2);border:1px solid var(--line)}
+.wc.ok{border-color:var(--ok);color:var(--ok)}
+.wc.rec{border-color:var(--warn);color:var(--warn)}
+.wc.lost{border-color:var(--bad);color:var(--bad)}
+.facts{display:grid;grid-template-columns:repeat(3,auto);gap:6px 28px;font-size:16px}
+.facts b{color:var(--accent);font-family:var(--f-mono)}
+
+/* table (slide 14) */
+.tbl{width:100%;border-collapse:collapse;font-size:19px}
+.tbl th{font:600 13px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+.tbl td{padding:13px 14px;border-bottom:1px solid var(--line)}
+.tbl td:first-child{font-family:var(--f-mono);font-weight:600;color:var(--accent);white-space:nowrap}
+.tbl tr:hover td{background:var(--panel)}
+
+/* summary */
+.sum{grid-template-columns:repeat(2,1fr)}
+.sum .panel{display:grid;gap:6px}
+.sum .nm{font-size:21px;font-weight:600}
+.sum .ds{font-size:17px;color:var(--muted);line-height:1.45}
+
+@media (prefers-reduced-motion:reduce){.led{animation:none}}
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <div class="viewport" id="viewport">
+    <div class="stage" id="stage">
+
+<!-- 1 -->
+<section class="slide" data-title="Титул">
+  <div class="title-wrap">
+    <div style="display:grid;gap:22px">
+      <div class="eyebrow">Базовый курс сисадмина · урок 1</div>
+      <h1>Основы <em>«железа»</em> для системного администратора</h1>
+      <p class="lead">Клиент-сервер, процессор и память, файл подкачки, жёсткие диски и RAID. На каждом слайде есть живой пример.</p>
+    </div>
+    <div class="rack" aria-hidden="true">
+      <div class="unit"><span class="led"></span><span class="led a" style="animation-delay:.3s"></span><span class="slot"></span><span class="mono muted" style="font-size:12px">WEB-01</span></div>
+      <div class="unit"><span class="led" style="animation-delay:.5s"></span><span class="led a" style="animation-delay:.1s"></span><span class="slot"></span><span class="mono muted" style="font-size:12px">DB-01</span></div>
+      <div class="unit"><span class="led" style="animation-delay:.9s"></span><span class="led a" style="animation-delay:.6s"></span><span class="slot"></span><span class="mono muted" style="font-size:12px">FILE-01</span></div>
+      <div class="unit"><span class="led" style="animation-delay:.2s"></span><span class="led a" style="animation-delay:.4s"></span><span class="slot"></span><span class="mono muted" style="font-size:12px">RAID-10</span></div>
+      <div class="unit"><span class="led" style="animation-delay:1.1s"></span><span class="led a" style="animation-delay:.8s"></span><span class="slot"></span><span class="mono muted" style="font-size:12px">RAID-5</span></div>
+      <div class="unit"><span class="led" style="animation-delay:.7s"></span><span class="led a" style="animation-delay:.2s"></span><span class="slot"></span><span class="mono muted" style="font-size:12px">BACKUP</span></div>
+    </div>
+  </div>
+  <aside class="notes" hidden>Поздоровайтесь и назовите тему. Скажите, что разберём, как устроен компьютер и сервер «изнутри»: от того, кто кому отправляет запросы, до того, как диски объединяют в RAID, чтобы не терять данные. Пообещайте живые примеры на каждом слайде.</aside>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-title="План">
+  <div><div class="eyebrow">План рассказа · ~30 минут</div><h2>О чём поговорим</h2></div>
+  <div class="agenda">
+    <div class="panel"><span class="num">01</span><span class="nm">Клиент-сервер</span><span class="mn">кто просит, кто отвечает · ~5 мин</span></div>
+    <div class="panel"><span class="num">02</span><span class="nm">CPU, RAM и диск</span><span class="mn">почему процессор ждёт · ~5 мин</span></div>
+    <div class="panel"><span class="num">03</span><span class="nm">Файл подкачки</span><span class="mn">когда памяти не хватает · ~2 мин</span></div>
+    <div class="panel"><span class="num">04</span><span class="nm">Ядра и Hyper-Threading</span><span class="mn">как процессор делает больше · ~3 мин</span></div>
+    <div class="panel"><span class="num">05</span><span class="nm">HDD, SSD, SSHD</span><span class="mn">механика против микросхем · ~4 мин</span></div>
+    <div class="panel"><span class="num">06</span><span class="nm">RAID-массивы</span><span class="mn">скорость и надёжность · ~7 мин</span></div>
+  </div>
+  <p class="note">Темы идут по порядку: каждая следующая опирается на предыдущую. Главная часть — RAID, на неё больше всего времени.</p>
+  <aside class="notes" hidden>Коротко пройдитесь по плану. Подчеркните логику: сначала поймём, как программы общаются (клиент-сервер), потом что внутри компьютера, и в конце — как защищают данные на серверах (RAID).</aside>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-title="Клиент и сервер">
+  <div><div class="eyebrow">01 · Клиент-серверная архитектура</div><h2>Программа из двух частей: клиент и сервер</h2></div>
+  <div style="display:grid;gap:22px">
+    <div class="flow" id="flow">
+      <div class="fbox" style="left:0"><span class="k">Пользователь</span><span class="nm">Вы за компьютером</span><span class="ds">Вводите адрес сайта и нажимаете Enter</span></div>
+      <div class="arrow" style="left:290px;width:133px"><span>действие</span></div>
+      <div class="fbox" style="left:423px"><span class="k">Клиент</span><span class="nm">Браузер</span><span class="ds">Точка доступа: показывает форму, отправляет запрос, выводит ответ</span></div>
+      <div class="arrow" style="left:713px;width:133px"><span>запрос ⇄ ответ</span></div>
+      <div class="fbox srv" style="left:846px"><span class="k" style="color:var(--accent)">Сервер</span><span class="nm">Веб-сервер</span><span class="ds">Принимает запрос, обрабатывает, хранит данные и возвращает страницу</span></div>
+    </div>
+    <div class="row"><button class="btn primary" id="flowGo">▶ Открыть сайт</button><span class="txt muted" id="flowMsg">Нажмите, чтобы отправить запрос</span></div>
+    <div class="key">Клиент и сервер могут работать <b>на одном компьютере</b> или <b>на разных</b>. К одному серверу подключается сразу много клиентов.</div>
+  </div>
+  <aside class="notes" hidden><b>Показ:</b> нажмите «Открыть сайт» — запрос идёт от браузера к серверу и обратно.<ul><li>Клиент — «окошко» для пользователя, сам почти ничего не считает.</li><li>Сервер — делает всю работу и хранит данные.</li><li>Пример: браузер и сайт. Ещё пример — почтовая программа и почтовый сервер.</li></ul></aside>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-title="Офис с сервером">
+  <div><div class="eyebrow">01 · Клиент-серверная архитектура</div><h2>Пример: офис из трёх сотрудников</h2></div>
+  <div class="body" style="grid-template-columns:700px 1fr">
+    <div class="office" id="office">
+      <svg viewBox="0 0 700 440" aria-hidden="true"><g stroke="#2b3b41" stroke-width="2" fill="none"><path d="M210 75 L470 220"/><path d="M210 220 L470 220"/><path d="M210 365 L470 220"/></g></svg>
+      <button class="pc" data-i="0" style="top:20px"><span class="nm">Петя</span><span class="st">нажмите, чтобы запросить файл</span></button>
+      <button class="pc" data-i="1" style="top:165px"><span class="nm">Ваня</span><span class="st">нажмите, чтобы запросить файл</span></button>
+      <button class="pc" data-i="2" style="top:310px"><span class="nm">Маша</span><span class="st">нажмите, чтобы запросить файл</span></button>
+      <div class="server" id="srv"><span class="nm"><span class="led"></span>Сервер</span><span class="note" id="srvSt">Хранит все Excel-файлы</span></div>
+    </div>
+    <div style="display:grid;gap:16px;align-content:start">
+      <div class="row"><button class="btn" id="srvToggle">Выключить сервер</button><button class="btn" id="pcBreak">Сломать ПК Пети</button></div>
+      <div class="row"><button class="btn primary" id="allReq">Запрос от всех</button><span class="pill ok" id="workers">Могут работать: 3 из 3</span></div>
+      <div class="panel" style="display:grid;gap:10px"><span class="k">Плюсы</span>
+        <ul class="list good" style="font-size:17px"><li>Все данные в одном месте</li><li>Доступ меняют в одном месте, а не на каждом ПК</li><li>Клиентам не нужно мощное железо</li></ul></div>
+      <div class="panel" style="display:grid;gap:10px"><span class="k">Минусы</span>
+        <ul class="list badl" style="font-size:17px"><li>Сервер — единая точка отказа</li><li>Сервер мощный и дорогой</li><li>Нужен квалифицированный админ</li></ul></div>
+    </div>
+  </div>
+  <aside class="notes" hidden><b>Показ по шагам:</b><ul><li>Нажмите «Запрос от всех» — все трое получают файлы.</li><li>«Сломать ПК Пети» → работают 2 из 3: остальные не замечают поломки.</li><li>Почините ПК и нажмите «Выключить сервер» → «Запрос от всех»: не работает никто, 0 из 3.</li></ul>Вывод: без сервера каждый хранит файлы у себя и бегает к коллегам с флешкой. С сервером удобно, но если он упал — простаивают все.</aside>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-title="Процессор ждёт диск">
+  <div><div class="eyebrow">02 · CPU, RAM и диск</div><h2>Процессор слишком быстрый для диска</h2></div>
+  <div style="display:grid;gap:22px">
+    <div class="comps">
+      <div class="panel comp"><span class="k">Жёсткий диск</span><span class="sp">1×</span><span class="note">самое медленное звено, берём за эталон</span></div>
+      <div class="panel comp"><span class="k">Оперативная память</span><span class="sp">≈5×</span><span class="note">быстрая прослойка, куда заранее грузят ОС и программы</span></div>
+      <div class="panel comp"><span class="k">Процессор</span><span class="sp">1000×</span><span class="note">одно ядро — одна операция за такт</span></div>
+    </div>
+    <div class="row"><button class="btn primary" id="laneGo">▶ Сложить 1 + 1</button><span class="note">процессору нужно три вещи: первую «1», вторую «1» и программу сложения</span></div>
+    <div class="lane"><span class="lbl">Берём с диска</span><div class="track" id="trA"></div><span class="res" id="resA">—</span></div>
+    <div class="lane"><span class="lbl">Берём из RAM</span><div class="track" id="trB"></div><span class="res" id="resB">—</span></div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>процессор работает</span><span><i class="seg-w"></i>процессор ждёт данные</span><span>цифры условные, как в уроке</span></div>
+  </div>
+  <aside class="notes" hidden><b>Показ:</b> нажмите «Сложить 1 + 1».<ul><li>Если каждый раз ходить на диск, процессор на каждую операцию ждёт ~999 тактов из 1000.</li><li>Решение — оперативная память: при загрузке ОС и программы копируются с диска в RAM. Поэтому компьютер и грузится ~40 секунд.</li><li>Из RAM ожидание сокращается в разы (в уроке: 200 вместо 999).</li></ul></aside>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-title="Почему не всё в RAM">
+  <div><div class="eyebrow">02 · CPU, RAM и диск</div><h2>Почему нельзя хранить всё в оперативной памяти</h2></div>
+  <div class="body two">
+    <div style="display:grid;gap:16px;align-content:start">
+      <div class="panel" style="display:grid;gap:8px"><span class="k">Причина 1 · Цена</span><p class="txt">Гигабайт оперативной памяти стоит <b>в разы дороже</b> гигабайта диска.</p></div>
+      <div class="panel" style="display:grid;gap:8px"><span class="k">Причина 2 · Энергозависимость</span><p class="txt">Выключили питание — <b>всё из RAM пропало</b>. На диске данные остаются.</p></div>
+      <div class="key">Сохранность данных — <b>одна из главных задач админа</b>.</div>
+    </div>
+    <div style="display:grid;gap:14px;align-content:start">
+      <div class="row"><button class="btn primary" id="pwrBtn">⏻ Выключить питание</button><span class="pill ok" id="pwrSt">Компьютер работает</span></div>
+      <span class="k">Оперативная память (RAM)</span>
+      <div class="cells" id="ramCells"></div>
+      <span class="k">Жёсткий диск</span>
+      <div class="cells" id="hddCells"></div>
+      <div class="legend"><span><i style="background:var(--os)"></i>ОС</span><span><i style="background:var(--c1)"></i>Word</span><span><i style="background:var(--c2)"></i>Excel</span><span><i style="background:var(--c3)"></i>Фото</span></div>
+    </div>
+  </div>
+  <aside class="notes" hidden><b>Показ:</b> нажмите «Выключить питание» — память очищается, диск остаётся. Потом «Включить» — данные снова копируются с диска в RAM (это и есть загрузка).<ul><li>RAM дорогая и энергозависимая.</li><li>Диск дешёвый и хранит данные без питания.</li></ul></aside>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-title="Файл подкачки">
+  <div><div class="eyebrow">03 · Файл подкачки</div><h2>Когда оперативной памяти не хватает</h2></div>
+  <div style="display:grid;gap:16px">
+    <div class="row" style="justify-content:space-between"><span class="k">RAM · 1000 МБ</span><span class="note mono" id="swFree"></span></div>
+    <div class="membar" id="swRam"></div>
+    <div class="row" style="justify-content:space-between"><span class="k">Файл подкачки на диске (медленно)</span><span class="pill ok" id="swSt">Памяти хватает</span></div>
+    <div class="membar" id="swDisk" style="height:44px"></div>
+    <span class="note">Нажимайте на программы, чтобы запустить их или переключиться на них:</span>
+    <div class="apps" id="swApps"></div>
+    <div class="row" style="justify-content:space-between;align-items:flex-start"><p class="log" id="swLog">ОС уже занимает 400 МБ. Запустите несколько программ.</p><button class="btn" id="swReset">Сбросить</button></div>
+  </div>
+  <aside class="notes" hidden><b>Показ по шагам:</b><ul><li>Запустите Блокнот, Excel, Photoshop — память заполняется.</li><li>Запустите Браузер: места нет, и самая давно не используемая программа уходит в файл подкачки на диск.</li><li>Теперь переключайтесь между Photoshop и Браузером несколько раз: данные постоянно гоняются с диска и обратно — «компьютер тормозит».</li></ul>Вывод: если система активно пользуется подкачкой, не хватает оперативной памяти. Цифры в демо условные.</aside>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-title="Многоядерность">
+  <div><div class="eyebrow">04 · Процессоры</div><h2>Одно ядро или несколько</h2></div>
+  <div style="display:grid;gap:22px">
+    <p class="lead">Одно ядро выполняет задачи строго по очереди. Два ядра работают одновременно, каждое со своим потоком задач.</p>
+    <div class="row"><button class="btn primary" id="coreGo">▶ Выполнить 8 задач</button></div>
+    <div class="clane"><span class="lbl txt"><b>1 ядро</b></span><div class="cflow" id="lane1"></div></div>
+    <div class="clane"><span class="lbl txt"><b>2 ядра</b></span><div class="cflow" id="lane2"></div></div>
+    <div class="row" style="gap:40px"><span class="txt">1 ядро: <b class="mono" id="t1">—</b></span><span class="txt">2 ядра: <b class="mono" id="t2">—</b></span></div>
+    <div class="key">В теории два ядра дают <b>×2</b>. На практике прирост <b>меньше</b>: задачи зависят друг от друга и делят общую память. Но он заметный.</div>
+  </div>
+  <aside class="notes" hidden><b>Показ:</b> нажмите «Выполнить 8 задач» — на двух ядрах очередь уходит вдвое быстрее. Сразу оговоритесь, что это идеальный случай, в жизни прирост меньше.</aside>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-title="Hyper-Threading">
+  <div><div class="eyebrow">04 · Процессоры</div><h2>Hyper-Threading: заполняем паузы ядра</h2></div>
+  <div class="body" style="grid-template-columns:1fr;gap:20px;align-content:start">
+    <p class="lead">У ядра <b style="color:var(--fg)">два набора регистров</b>, то есть два потока команд. Пока первый поток ждёт ответа памяти, ядро выполняет команду второго.</p>
+    <div class="tlwrap" id="htWrap"><div class="playhead" id="htHead"></div></div>
+    <div class="row"><button class="btn primary" id="htGo">▶ Пройти по тактам</button>
+      <div class="legend"><span><i class="s-A"></i>поток A считает</span><span><i class="s-B"></i>поток B считает</span><span><i class="s-W"></i>ждёт память</span></div></div>
+    <div class="key">Это схема, а не масштаб. Второго ядра не появляется: потоки делят одно ядро, поэтому реальный прирост обычно <b>до ~15 %</b>. Программа должна уметь работать в несколько потоков.</div>
+  </div>
+  <aside class="notes" hidden><b>Показ:</b> нажмите «Пройти по тактам». Без HT ядро часто стоит без дела, ожидая память. С HT в эти паузы вклеиваются команды второго потока.<ul><li>Главная фраза: Hyper-Threading не добавляет ядро, а заполняет паузы единственного ядра.</li><li>Технология Intel. Прирост до ~15 % в хороших случаях.</li></ul></aside>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-title="Как читает HDD">
+  <div><div class="eyebrow">05 · Жёсткие диски</div><h2>HDD: блины, головка и фрагментация</h2></div>
+  <div class="body" style="grid-template-columns:420px 1fr;align-items:start">
+    <canvas id="platter" width="800" height="800" aria-label="Схема пластины жёсткого диска с головкой"></canvas>
+    <div style="display:grid;gap:18px">
+      <p class="txt">Внутри вращается пластина, над ней двигается считывающая головка. Скорость упирается в <b>физику</b>: головке нужно доехать до дорожки и дождаться нужного места.</p>
+      <div class="row"><button class="btn primary" id="hddSeq">▶ Файл одним куском</button><button class="btn primary" id="hddFrag">▶ Файл из 4 кусков</button></div>
+      <div class="row" style="gap:40px">
+        <div class="stat"><span class="v" id="hddRev">0,0</span><span class="l">оборотов диска</span></div>
+        <div class="stat"><span class="v" id="hddSeek">0</span><span class="l">перемещений головки</span></div>
+      </div>
+      <p class="note" id="hddMsg">Объём данных в обоих файлах почти одинаковый. Сравните, сколько оборотов уходит на чтение.</p>
+      <div class="key"><b>Последовательное чтение</b> — файл лежит подряд, быстро. <b>Случайное</b> — куски разбросаны, много лишних оборотов и перемещений.</div>
+    </div>
+  </div>
+  <aside class="notes" hidden><b>Показ:</b> сначала «Файл одним куском» — головка встала и прочитала за ~один оборот. Потом «Файл из 4 кусков» — головка прыгает по дорожкам и ждёт, пока нужный кусок подъедет. Оборотов больше.<ul><li>Поэтому в тестах дисков последовательная скорость в разы выше случайной.</li><li>Если файл разбит на тысячи кусков — время умножается.</li></ul></aside>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-title="HDD, SSD, SSHD">
+  <div><div class="eyebrow">05 · Жёсткие диски</div><h2>Три типа дисков</h2></div>
+  <div class="body cmp">
+    <div class="panel"><span class="k">Hard Disk Drive</span><span class="nm">HDD</span><span class="sub">пластины и головка, механика</span>
+      <div class="mbar"><span>последовательно ≈ 150 МБ/с</span><div class="t"><span style="width:27%"></span></div></div>
+      <div class="mbar r"><span>случайно (мелкие файлы) ≈ 1 МБ/с</span><div class="t"><span style="width:1%"></span></div></div>
+      <ul class="pc-ul"><li>дёшево, большой объём</li><li>медленно, особенно случайное чтение</li></ul></div>
+    <div class="panel"><span class="k">Solid State Drive</span><span class="nm">SSD</span><span class="sub">микросхемы памяти и контроллер</span>
+      <div class="mbar"><span>последовательно ≈ 550 МБ/с (SATA)</span><div class="t"><span style="width:100%"></span></div></div>
+      <div class="mbar r"><span>случайно ≈ 40 МБ/с</span><div class="t"><span style="width:7%"></span></div></div>
+      <ul class="pc-ul"><li>доступ к любому месту одинаково быстрый</li><li>дороже, ограниченный ресурс записи</li></ul></div>
+    <div class="panel"><span class="k">Гибридный</span><span class="nm">SSHD</span><span class="sub">HDD + небольшой SSD-кэш 0,5–1 ГБ</span>
+      <div class="mbar"><span>частые файлы — как SSD</span><div class="t"><span style="width:80%"></span></div></div>
+      <div class="mbar r"><span>остальное — как HDD</span><div class="t"><span style="width:1%"></span></div></div>
+      <ul class="pc-ul"><li>контроллер переносит частые файлы (например, Photoshop) в кэш</li><li>компромисс цены и скорости</li></ul></div>
+  </div>
+  <p class="note">Скорости — типичные значения для ориентира, у конкретных моделей они отличаются.</p>
+  <aside class="notes" hidden>Пройдитесь слева направо. Обратите внимание на оранжевые полоски: у HDD случайное чтение почти нулевое — именно из-за головки, которую показывали на прошлом слайде. У SSD механики нет, поэтому он на порядки быстрее. SSHD — обычный HDD, который держит самые нужные файлы в маленьком SSD-кэше.</aside>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-title="Что такое RAID">
+  <div><div class="eyebrow">06 · RAID-массивы</div><h2>RAID: несколько дисков как один</h2></div>
+  <div class="body two" style="align-items:center">
+    <div style="display:grid;gap:18px">
+      <p class="txt">RAID-контроллер объединяет диски по определённой логике. Операционная система видит их как <b>один диск</b>.</p>
+      <div class="panel" style="display:grid;gap:8px"><span class="k">Зачем это нужно</span><p class="txt">Дома умер диск — переустановили систему. На сервере работают <b>50 человек</b>: упал диск — все простаивают, компания теряет деньги.</p></div>
+      <p class="txt">RAID повышает <b>надёжность</b>, <b>скорость</b> или и то и другое.</p>
+    </div>
+    <div class="rdiag">
+      <div class="rnode">Операционная система</div><div class="rv"></div>
+      <div class="seen">ОС видит: один диск</div><div class="rv"></div>
+      <div class="rnode ctl">RAID-контроллер</div><div class="rv"></div>
+      <div class="rdisks"><div class="rdisk">Диск 1</div><div class="rdisk">Диск 2</div><div class="rdisk">Диск 3</div><div class="rdisk">Диск 4</div></div>
+    </div>
+  </div>
+  <aside class="notes" hidden>Объясните, что контроллер — посредник: ОС не знает, сколько там дисков и как разложены данные. Самые частые уровни — 0, 1, 10, 5 и 6. Сейчас разберём каждый на одном слове — «ХЛЕБ».</aside>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-title="RAID-симулятор">
+  <div><div class="eyebrow">06 · RAID-массивы · живой пример</div><h2 id="rTitle">Записываем слово «ХЛЕБ»</h2></div>
+  <div style="display:grid;gap:16px;flex:1;min-height:0;align-content:start">
+    <div class="row" style="gap:16px">
+      <div class="seg" id="rLv" role="group" aria-label="Уровень RAID">
+        <button data-l="0">RAID 0</button><button data-l="1">RAID 1</button><button data-l="10">RAID 10</button><button data-l="5">RAID 5</button><button data-l="6">RAID 6</button>
+      </div>
+      <label class="row" style="gap:8px"><span class="note">Дисков</span><select class="inp" id="rN"></select></label>
+      <label class="row" style="gap:8px"><span class="note">Слово</span><input class="inp" id="rWord" maxlength="8" value="ХЛЕБ"></label>
+      <span class="note">Нажмите на диск, чтобы он «умер»</span>
+    </div>
+    <div class="disks" id="rDisks"></div>
+    <div class="row" style="gap:18px;justify-content:space-between;align-items:center">
+      <div class="row" style="gap:12px"><span class="k">ОС читает:</span><div class="word" id="rRead"></div></div>
+      <div class="row"><span class="pill ok" id="rSt">Все диски исправны</span><button class="btn" id="rFix">Заменить диски</button></div>
+    </div>
+    <div class="facts" id="rFacts"></div>
+  </div>
+  <aside class="notes" hidden><b>Сценарий показа:</b><ul><li><b>RAID 0:</b> буквы разложены по дискам по очереди. Убейте один диск — ОС получает «?Л?Б», данные потеряны.</li><li><b>RAID 1:</b> на каждом диске полная копия. Убейте любой — слово читается целиком.</li><li><b>RAID 10 (4–6 дисков):</b> убейте по одному диску в каждой паре — всё работает. Убейте оба диска одной пары — всё пропало.</li><li><b>RAID 5:</b> P — контрольная сумма. Убейте один диск — недостающие буквы вычисляются (жёлтые). Нажмите «Заменить диски» — пройдёт ребилд. Убейте два — потеря.</li><li><b>RAID 6:</b> P и Q, выдерживает два отказа.</li></ul>Можно ввести своё слово до 8 букв.</aside>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-title="Сравнение RAID">
+  <div><div class="eyebrow">06 · RAID-массивы</div><h2>Шпаргалка по уровням</h2></div>
+  <div style="overflow-x:auto">
+  <table class="tbl">
+    <thead><tr><th>Уровень</th><th>Мин. дисков</th><th>Полезный объём</th><th>Переживёт отказ</th><th>Скорость</th><th>Где применяют</th></tr></thead>
+    <tbody>
+      <tr><td>RAID 0</td><td>2</td><td>N × диск</td><td>0 дисков</td><td>быстрое чтение и запись</td><td>где важна только скорость</td></tr>
+      <tr><td>RAID 1</td><td>2</td><td>1 диск</td><td>1 диск</td><td>запись ×1, чтение быстрее</td><td>системные диски, надёжность</td></tr>
+      <tr><td>RAID 10</td><td>4</td><td>N/2 × диск</td><td>по 1 в каждой паре</td><td>быстро</td><td>высоконагруженные системы</td></tr>
+      <tr><td>RAID 5</td><td>3</td><td>(N−1) × диск</td><td>1 диск</td><td>чтение быстрое, запись медленнее</td><td>средняя нагрузка, экономия места</td></tr>
+      <tr><td>RAID 6</td><td>4</td><td>(N−2) × диск</td><td>2 диска</td><td>запись ещё медленнее</td><td>большие массивы, надёжность</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="key">Пример: 5 дисков по 100 ГБ в RAID 5 дают <b>(5 − 1) × 100 = 400 ГБ</b>. RAID 10 надёжнее, чем RAID 01. Ребилд RAID 5/6 идёт долго и сильно нагружает массив.</div>
+  <aside class="notes" hidden>Пробегитесь по строкам и спросите слушателей: «Что выберем для сервера базы данных под большой нагрузкой?» (RAID 10). «А для файлового архива, где важен объём?» (RAID 5 или 6).</aside>
+</section>
+
+<!-- 15 -->
+<section class="slide" data-title="Итоги">
+  <div><div class="eyebrow">Итоги</div><h2>Что запомнить</h2></div>
+  <div class="body sum">
+    <div class="panel"><span class="nm">Клиент-сервер</span><span class="ds">Удобно и централизованно, но сервер — единая точка отказа.</span></div>
+    <div class="panel"><span class="nm">CPU → RAM → диск</span><span class="ds">Память нужна, чтобы процессор не простаивал. Не хватает памяти — подкачка и тормоза.</span></div>
+    <div class="panel"><span class="nm">Диски</span><span class="ds">HDD дешёвый и медленный, SSD быстрый и дороже, SSHD — компромисс.</span></div>
+    <div class="panel"><span class="nm">RAID</span><span class="ds">0 — скорость, 1 — надёжность, 10 — и то и другое, 5 и 6 — баланс и экономия места.</span></div>
+  </div>
+  <div class="key" style="font-size:22px">Главная задача администратора — обеспечить <b>доступность и сохранность данных</b>.</div>
+  <aside class="notes" hidden>Подведите итог по четырём карточкам и закончите главной мыслью. Предложите вопросы. Если спросят про бэкапы: RAID не заменяет резервное копирование — он защищает от поломки диска, но не от удаления файла или вируса.</aside>
+</section>
+
+    </div>
+    <div class="notesbox" id="notesBox" hidden></div>
+  </div>
+  <div class="bar">
+    <button class="nbtn" id="prev" aria-label="Предыдущий слайд">←</button>
+    <span class="count" id="count">1 / 15</span>
+    <button class="nbtn" id="next" aria-label="Следующий слайд">→</button>
+    <span class="ttl" id="ttl"></span>
+    <button class="nbtn" id="notesBtn">Заметки (N)</button>
+    <button class="nbtn" id="fsBtn">Во весь экран (F)</button>
+  </div>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---------- deck ---------- */
+const stage=$('#stage'), vp=$('#viewport'), slides=$$('.slide');
+let cur=0;
+function fit(){const s=Math.min(vp.clientWidth/1280,vp.clientHeight/720);stage.style.transform=`translate(-50%,-50%) scale(${s})`;}
+addEventListener('resize',fit);
+function go(i){
+  i=Math.max(0,Math.min(slides.length-1,i));
+  slides[cur].classList.remove('active');cur=i;slides[cur].classList.add('active');
+  $('#count').textContent=(cur+1)+' / '+slides.length;
+  $('#ttl').textContent=slides[cur].dataset.title||'';
+  const n=slides[cur].querySelector('.notes');$('#notesBox').innerHTML=n?n.innerHTML:'';
+  try{history.replaceState(null,'','#s'+(cur+1))}catch(e){}
+}
+$('#prev').onclick=()=>go(cur-1);$('#next').onclick=()=>go(cur+1);
+function toggleNotes(){const b=$('#notesBox');b.hidden=!b.hidden;$('#notesBtn').classList.toggle('on',!b.hidden)}
+$('#notesBtn').onclick=toggleNotes;
+function fs(){const el=document.documentElement;if(document.fullscreenElement){document.exitFullscreen().catch(()=>{})}else if(el.requestFullscreen){el.requestFullscreen().catch(()=>{})}}
+$('#fsBtn').onclick=fs;
+document.addEventListener('fullscreenchange',()=>setTimeout(fit,50));
+addEventListener('keydown',e=>{
+  if(e.target.matches('input,select,textarea'))return;
+  if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(cur+1)}
+  else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(cur-1)}
+  else if(e.key==='Home')go(0); else if(e.key==='End')go(slides.length-1);
+  else if(e.key==='n'||e.key==='N'||e.key==='т'||e.key==='Т')toggleNotes();
+  else if(e.key==='f'||e.key==='F'||e.key==='а'||e.key==='А')fs();
+});
+let tx=null;vp.addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});
+vp.addEventListener('touchend',e=>{if(tx===null)return;const d=e.changedTouches[0].clientX-tx;if(Math.abs(d)>60&&!e.target.closest('button,input,select,canvas'))go(cur+(d<0?1:-1));tx=null});
+
+function packet(box,from,to,color,dur){
+  const p=document.createElement('div');p.className='pkt';p.style.background=color;p.style.boxShadow='0 0 10px '+color;box.append(p);
+  const a=p.animate([{transform:`translate(${from[0]-7}px,${from[1]-7}px)`},{transform:`translate(${to[0]-7}px,${to[1]-7}px)`}],{duration:reduce?60:dur,easing:'ease-in-out',fill:'forwards'});
+  return a.finished.then(()=>p.remove());
+}
+
+/* ---------- slide 3: flow ---------- */
+let flowBusy=false;
+$('#flowGo').onclick=async()=>{
+  if(flowBusy)return;flowBusy=true;const f=$('#flow'),m=$('#flowMsg');
+  m.textContent='1. Вы ввели адрес → браузер';await packet(f,[290,110],[423,110],css('--fg'),500);
+  m.textContent='2. Браузер отправляет запрос серверу';await packet(f,[713,110],[846,110],css('--accent'),700);
+  m.textContent='3. Сервер обрабатывает запрос…';await sleep(reduce?50:500);
+  m.textContent='4. Сервер возвращает страницу';await packet(f,[846,130],[713,130],css('--ok'),700);
+  m.textContent='5. Браузер показывает страницу вам';await packet(f,[423,130],[290,130],css('--ok'),500);
+  m.textContent='Готово: клиент показал то, что подготовил сервер';flowBusy=false;
+};
+
+/* ---------- slide 4: office ---------- */
+const OF={server:true,broken:[false,false,false]};
+const pcs=$$('.pc'), office=$('#office');
+function ofUpdate(){
+  const n=OF.server?OF.broken.filter(b=>!b).length:0;const w=$('#workers');
+  w.textContent='Могут работать: '+n+' из 3';w.className='pill '+(n===3?'ok':n===0?'bad':'warn');
+  $('#srv').classList.toggle('off',!OF.server);
+  $('#srvSt').textContent=OF.server?'Хранит все Excel-файлы':'Выключен — никто не получит файлы';
+  $('#srvToggle').textContent=OF.server?'Выключить сервер':'Включить сервер';
+  $('#pcBreak').textContent=OF.broken[0]?'Починить ПК Пети':'Сломать ПК Пети';
+  pcs.forEach((p,i)=>p.classList.toggle('broken',OF.broken[i]));
+}
+async function ofReq(i){
+  const p=pcs[i],st=p.querySelector('.st');
+  if(OF.broken[i]){st.textContent='компьютер не включается';return}
+  st.textContent='запрашивает файл…';
+  const y=[75,220,365][i];
+  await packet(office,[210,y],[470,220],css('--accent'),600);
+  if(!OF.server){st.textContent='✕ сервер не отвечает';st.style.color=css('--bad');return}
+  $('#srv').classList.add('hit');await sleep(reduce?30:250);$('#srv').classList.remove('hit');
+  await packet(office,[470,220],[210,y],css('--ok'),600);
+  st.textContent='✓ файл получен';st.style.color=css('--ok');
+}
+pcs.forEach((p,i)=>p.onclick=()=>ofReq(i));
+$('#allReq').onclick=()=>{pcs.forEach(p=>{const s=p.querySelector('.st');s.style.color=''});[0,1,2].forEach(i=>ofReq(i))};
+$('#srvToggle').onclick=()=>{OF.server=!OF.server;pcs.forEach(p=>{const s=p.querySelector('.st');s.style.color='';s.textContent='нажмите, чтобы запросить файл'});ofUpdate()};
+$('#pcBreak').onclick=()=>{OF.broken[0]=!OF.broken[0];const s=pcs[0].querySelector('.st');s.style.color='';s.textContent=OF.broken[0]?'ремонт займёт 2 дня':'нажмите, чтобы запросить файл';ofUpdate()};
+ofUpdate();
+
+/* ---------- slide 5: lanes ---------- */
+const TOTAL=3000, TRACKW=820;
+function buildLane(tr,wait){
+  tr.innerHTML='';const clip=document.createElement('div');clip.className='clip';
+  const segs=document.createElement('div');segs.className='segs';segs.style.width=TRACKW+'px';
+  for(let k=0;k<3;k++){const w=document.createElement('div');w.className='seg-w';w.style.width=(wait/TOTAL*TRACKW)+'px';const c=document.createElement('div');c.className='seg-c';c.style.width=Math.max(4,1/TOTAL*TRACKW)+'px';segs.append(w,c)}
+  clip.append(segs);tr.append(clip);return clip;
+}
+let laneBusy=false;
+$('#laneGo').onclick=async()=>{
+  if(laneBusy)return;laneBusy=true;
+  $('#resA').textContent='…';$('#resB').textContent='…';
+  const a=buildLane($('#trA'),999),b=buildLane($('#trB'),200);
+  const pa=3*1000/TOTAL*100, pb=3*201/TOTAL*100;
+  const anA=a.animate([{width:'0%'},{width:pa+'%'}],{duration:reduce?50:4000,easing:'linear',fill:'forwards'});
+  const anB=b.animate([{width:'0%'},{width:pb+'%'}],{duration:reduce?50:4000*pb/pa,easing:'linear',fill:'forwards'});
+  anB.finished.then(()=>$('#resB').textContent='ждал ≈600 тактов');
+  await anA.finished;$('#resA').textContent='ждал ≈3000 тактов';laneBusy=false;
+};
+buildLane($('#trA'),999);buildLane($('#trB'),200);
+
+/* ---------- slide 6: power ---------- */
+const ramPat=['f4','f4','f4','f4','f4','f1','f1','f1','f2','f2','f3','f3','f3','','',''];
+const hddPat=['f4','f4','f4','f4','f4','f4','f1','f1','f1','f2','f2','f2','f3','f3','f3','f3'];
+function cells(el,pat){el.innerHTML='';pat.forEach(c=>{const d=document.createElement('div');d.className='cell '+c;el.append(d)})}
+cells($('#ramCells'),ramPat);cells($('#hddCells'),hddPat);
+let powered=true,pwrBusy=false;
+$('#pwrBtn').onclick=async()=>{
+  if(pwrBusy)return;pwrBusy=true;const rc=[...$('#ramCells').children],st=$('#pwrSt');
+  if(powered){
+    for(const c of rc){c.className='cell';await sleep(reduce?0:40)}
+    st.textContent='Питание выключено: RAM пуста, диск цел';st.className='pill bad';$('#pwrBtn').textContent='⏻ Включить питание';
+  }else{
+    st.textContent='Загрузка: копируем с диска в RAM…';st.className='pill warn';
+    for(let i=0;i<rc.length;i++){rc[i].className='cell '+ramPat[i];await sleep(reduce?0:120)}
+    st.textContent='Компьютер работает';st.className='pill ok';$('#pwrBtn').textContent='⏻ Выключить питание';
+  }
+  powered=!powered;pwrBusy=false;
+};
+
+/* ---------- slide 7: swap ---------- */
+const SW={ram:1000,os:400,apps:[{id:'note',name:'Блокнот',size:100,col:'--c1'},{id:'xl',name:'Excel',size:200,col:'--c2'},{id:'ps',name:'Photoshop',size:400,col:'--c3'},{id:'br',name:'Браузер',size:300,col:'--c4'}]};
+let swLoc={},swLast={},swOrder=[],swT=0,swHist=[];
+function swUsed(){return SW.apps.filter(a=>swLoc[a.id]==='ram').reduce((s,a)=>s+a.size,0)}
+function mseg(label,size,total,color){const d=document.createElement('div');d.className='mseg';d.style.width=(size/total*100)+'%';d.style.background=color;d.textContent=label;d.title=label;return d}
+function swRender(){
+  const ram=$('#swRam'),disk=$('#swDisk');ram.innerHTML='';disk.innerHTML='';
+  ram.append(mseg('ОС 400 МБ',SW.os,SW.ram,css('--os')));
+  swOrder.filter(id=>swLoc[id]==='ram').forEach(id=>{const a=SW.apps.find(x=>x.id===id);ram.append(mseg(a.name+' '+a.size,a.size,SW.ram,css(a.col)))});
+  SW.apps.filter(a=>swLoc[a.id]==='swap').forEach(a=>{const s=mseg(a.name+' '+a.size,a.size,SW.ram,css(a.col));s.style.opacity='.55';disk.append(s)});
+  const free=SW.ram-SW.os-swUsed();$('#swFree').textContent='свободно: '+free+' МБ';
+  const box=$('#swApps');box.innerHTML='';
+  SW.apps.forEach(a=>{const b=document.createElement('button');b.className='app-b';
+    const st=swLoc[a.id]==='ram'?'в оперативной памяти':swLoc[a.id]==='swap'?'в файле подкачки':'не запущена';
+    b.innerHTML=`<span class="nm"><i style="background:var(${a.col})"></i>${a.name}</span><span class="st">${a.size} МБ · ${st}</span>`;
+    b.onclick=()=>swUse(a.id);box.append(b)});
+  const ins=swHist.slice(-4).filter(h=>h==='in').length,inSwap=SW.apps.some(a=>swLoc[a.id]==='swap'),p=$('#swSt');
+  if(ins>=2){p.textContent='Активная подкачка — всё тормозит';p.className='pill bad'}
+  else if(inSwap){p.textContent='Часть данных в файле подкачки';p.className='pill warn'}
+  else{p.textContent='Памяти хватает';p.className='pill ok'}
+}
+function swUse(id){
+  swT++;const a=SW.apps.find(x=>x.id===id),from=swLoc[id];
+  if(from==='ram'){swLast[id]=swT;swHist.push('hit');$('#swLog').textContent=a.name+' уже в оперативной памяти — переключение мгновенное.';swRender();return}
+  const out=[];let free=SW.ram-SW.os-swUsed();
+  while(free<a.size){
+    const v=SW.apps.filter(x=>swLoc[x.id]==='ram'&&x.id!==id).sort((x,y)=>swLast[x.id]-swLast[y.id])[0];
+    if(!v)break;swLoc[v.id]='swap';free+=v.size;out.push(v.name);
+  }
+  swLoc[id]='ram';swLast[id]=swT;swOrder=swOrder.filter(x=>x!==id);swOrder.push(id);swHist.push(from==='swap'?'in':'load');
+  let msg=from==='swap'?a.name+' возвращается из файла подкачки — читаем с диска, медленно.':a.name+' загружена с диска в память.';
+  if(out.length)msg+=' Места не хватило: '+out.join(', ')+' — дольше всех без дела, '+(out.length>1?'выгружены':'выгружена')+' в файл подкачки.';
+  $('#swLog').textContent=msg;swRender();
+}
+$('#swReset').onclick=()=>{swLoc={};swLast={};swOrder=[];swT=0;swHist=[];$('#swLog').textContent='ОС уже занимает 400 МБ. Запустите несколько программ.';swRender()};
+swRender();
+
+/* ---------- slide 8: cores ---------- */
+const TASKC=['--c1','--c2','--c3','--c4'];
+function buildCores(el,k){
+  el.innerHTML='';const q=document.createElement('div');q.className='q';
+  for(let j=0;j<8;j++){const c=document.createElement('div');c.className='chip';c.textContent=j+1;c.style.background=css(TASKC[j%4]);q.append(c)}
+  const cs=document.createElement('div');cs.className='cores';
+  for(let i=0;i<k;i++){const c=document.createElement('div');c.className='core';c.textContent='ядро '+(i+1);cs.append(c)}
+  const d=document.createElement('div');d.className='q';el.append(q,cs,d);return{q,cs:[...cs.children],d};
+}
+let coreRun=0;
+function runLane(el,k,out){
+  const L=buildCores(el,k),chips=[...L.q.children],T=reduce?20:450,id=coreRun;
+  chips.forEach((c,j)=>{const st=Math.floor(j/k)*T,core=L.cs[j%k];
+    setTimeout(()=>{if(id!==coreRun)return;core.textContent='';core.append(c)},st);
+    setTimeout(()=>{if(id!==coreRun)return;L.d.append(c);if(!core.children.length)core.textContent='ядро '+(j%k+1)},st+T-10)});
+  const total=Math.ceil(8/k)*T;
+  setTimeout(()=>{if(id===coreRun)out.textContent=Math.ceil(8/k)+' шагов'},total);
+}
+$('#coreGo').onclick=()=>{coreRun++;$('#t1').textContent='…';$('#t2').textContent='…';runLane($('#lane1'),1,$('#t1'));runLane($('#lane2'),2,$('#t2'))};
+buildCores($('#lane1'),1);buildCores($('#lane2'),2);
+
+/* ---------- slide 9: HT ---------- */
+const HT=[
+  {lbl:'Без HT · ядро',s:'AWWAWWAWWAWW'},
+  {lbl:'С HT · поток A',s:'AWWAWWAWWAWW'},
+  {lbl:'С HT · поток B',s:'-BWWBWWBWWB-'},
+  {lbl:'С HT · ядро',s:'AB-AB-AB-AB-'}
+];
+(function(){const w=$('#htWrap');HT.forEach((r,ri)=>{const row=document.createElement('div');row.className='tl';
+  const l=document.createElement('span');l.className='lbl';l.textContent=r.lbl;row.append(l);
+  [...r.s].forEach(ch=>{const s=document.createElement('div');s.className='slot '+(ch==='A'?'s-A':ch==='B'?'s-B':ch==='W'?'s-W':'s-idle');s.textContent=ch==='A'?'A':ch==='B'?'B':ch==='W'?'…':'';row.append(s)});
+  if(ri===1)row.style.marginTop='14px';w.append(row)})})();
+let htBusy=false;
+$('#htGo').onclick=async()=>{
+  if(htBusy)return;htBusy=true;const h=$('#htHead'),w=$('#htWrap');const W=w.clientWidth;
+  h.style.opacity='1';
+  await h.animate([{left:'150px'},{left:W+'px'}],{duration:reduce?50:4200,easing:'linear',fill:'forwards'}).finished;
+  await sleep(400);h.style.opacity='0';htBusy=false;
+};
+
+/* ---------- slide 10: HDD ---------- */
+const cv=$('#platter'),cx=cv.getContext('2d');cx.scale(2,2);
+const TR=[70,105,140,175],C=200,TAU=Math.PI*2,OMEGA=TAU/2.4;
+const FILES={seq:[{tr:2,start:0.5,len:3.4}],frag:[{tr:2,start:0.5,len:0.9},{tr:0,start:4.4,len:0.9},{tr:3,start:1.3,len:0.8},{tr:1,start:5.7,len:0.8}]};
+let H={r:0,headR:TR[1],frags:FILES.seq.map(f=>({...f,read:0})),run:null,last:0};
+const mod=(a,m)=>((a%m)+m)%m;
+function hddStart(kind){
+  H.frags=FILES[kind].map(f=>({...f,read:0}));
+  H.run={i:0,phase:'seek',r0:H.r,seeks:0};
+  $('#hddMsg').textContent=kind==='seq'?'Головка встала на дорожку и читает файл подряд.':'Головка прыгает между дорожками и ждёт, пока кусок подъедет.';
+}
+$('#hddSeq').onclick=()=>hddStart('seq');$('#hddFrag').onclick=()=>hddStart('frag');
+function hddStep(dt){
+  H.r+=OMEGA*dt;const R=H.run;if(!R)return;
+  const f=H.frags[R.i];
+  if(R.phase==='seek'){
+    const tgt=TR[f.tr],d=tgt-H.headR,step=260*dt;
+    if(Math.abs(d)<=step){H.headR=tgt;R.seeks++;R.phase='wait';R.at=H.r+mod(f.start-H.r,TAU)}else H.headR+=Math.sign(d)*step;
+  }else if(R.phase==='wait'){
+    if(H.r>=R.at){R.phase='read'}
+  }else if(R.phase==='read'){
+    f.read=Math.min(f.len,H.r-R.at);
+    if(f.read>=f.len){R.i++;if(R.i>=H.frags.length){R.done=true;H.run=null;$('#hddMsg').textContent+=' Готово.'}else R.phase='seek'}
+  }
+  if(R){$('#hddRev').textContent=((H.r-R.r0)/TAU).toFixed(1).replace('.',',');$('#hddSeek').textContent=R.seeks}
+}
+function hddDraw(){
+  const g=cx;g.clearRect(0,0,400,400);
+  g.fillStyle=css('--panel');g.beginPath();g.arc(C,C,195,0,TAU);g.fill();
+  g.strokeStyle=css('--line');g.lineWidth=1;TR.forEach(r=>{g.beginPath();g.arc(C,C,r,0,TAU);g.stroke()});
+  // rotation marker
+  g.strokeStyle=css('--muted');g.globalAlpha=.35;g.beginPath();g.moveTo(C,C);g.lineTo(C+Math.cos(-H.r)*190,C+Math.sin(-H.r)*190);g.stroke();g.globalAlpha=1;
+  g.lineCap='round';
+  H.frags.forEach(f=>{const R=TR[f.tr];
+    g.lineWidth=14;g.strokeStyle=css('--info');g.globalAlpha=.55;g.beginPath();g.arc(C,C,R,f.start-H.r,f.start+f.len-H.r);g.stroke();g.globalAlpha=1;
+    if(f.read>0){g.strokeStyle=css('--accent');g.beginPath();g.arc(C,C,R,f.start-H.r,f.start+f.read-H.r);g.stroke()}
+  });
+  g.lineCap='butt';
+  g.fillStyle=css('--panel2');g.beginPath();g.arc(C,C,30,0,TAU);g.fill();
+  // arm
+  g.strokeStyle=css('--fg');g.lineWidth=6;g.beginPath();g.moveTo(385,385);g.lineTo(C+H.headR,C);g.stroke();
+  g.fillStyle=css('--accent');g.beginPath();g.arc(C+H.headR,C,8,0,TAU);g.fill();
+  g.fillStyle=css('--fg');g.beginPath();g.arc(385,385,12,0,TAU);g.fill();
+}
+function loop(t){const dt=Math.min(.05,(t-(H.last||t))/1000);H.last=t;
+  if(slides[cur]&&slides[cur].contains(cv)){hddStep(reduce&&H.run?dt*4:dt);hddDraw()}
+  requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+
+/* ---------- slide 13: RAID ---------- */
+const LV={'0':{ns:[2,3,4,5,6],tol:'не выдерживает ни одного отказа',speed:'чтение и запись быстрее: данные пишутся на все диски параллельно',cap:n=>n},
+          '1':{ns:[2],tol:'выдерживает отказ одного диска',speed:'запись как у одного диска, чтение быстрее',cap:n=>1},
+          '10':{ns:[4,6],tol:'по одному диску в каждой зеркальной паре',speed:'быстро, как RAID 0, надёжно, как RAID 1',cap:n=>n/2},
+          '5':{ns:[3,4,5,6],tol:'выдерживает отказ одного любого диска',speed:'чтение быстрое, запись медленнее: считается контрольная сумма',cap:n=>n-1,k:1},
+          '6':{ns:[4,5,6],tol:'выдерживает отказ двух любых дисков',speed:'как RAID 5, запись ещё медленнее: две контрольные суммы',cap:n=>n-2,k:2}};
+const RS={l:'0',n:2,word:'ХЛЕБ',dead:new Set(),rb:false};
+function layout(){
+  const n=RS.n,ch=[...RS.word],disks=Array.from({length:n},()=>[]),where=ch.map(()=>[]);
+  if(RS.l==='0')ch.forEach((c,i)=>{const d=i%n;disks[d].push({t:'d',c});where[i].push(d)});
+  else if(RS.l==='1')ch.forEach((c,i)=>{for(let d=0;d<n;d++){disks[d].push({t:'d',c});where[i].push(d)}});
+  else if(RS.l==='10'){const p=n/2;ch.forEach((c,i)=>{const g=i%p;[2*g,2*g+1].forEach(d=>{disks[d].push({t:'d',c});where[i].push(d)})})}
+  else{const k=LV[RS.l].k,per=n-k,stripes=Math.ceil(ch.length/per);let ci=0;
+    for(let s=0;s<stripes;s++){const P=mod(n-1-s,n),Q=(P+1)%n;
+      for(let d=0;d<n;d++){
+        if(d===P)disks[d].push({t:'p',c:'P'});
+        else if(k===2&&d===Q)disks[d].push({t:'q',c:'Q'});
+        else if(ci<ch.length){disks[d].push({t:'d',c:ch[ci]});where[ci].push(d);ci++}
+        else disks[d].push({t:'e',c:''});
+      }}}
+  return{disks,where,ch};
+}
+function rRender(){
+  $$('#rLv button').forEach(b=>b.classList.toggle('on',b.dataset.l===RS.l));
+  const sel=$('#rN');sel.innerHTML=LV[RS.l].ns.map(v=>`<option value="${v}"${v===RS.n?' selected':''}>${v}</option>`).join('');sel.disabled=LV[RS.l].ns.length===1;
+  $('#rTitle').textContent='Записываем слово «'+RS.word+'» в RAID '+RS.l;
+  const {disks,where,ch}=layout(),box=$('#rDisks');box.innerHTML='';
+  disks.forEach((cells,d)=>{const el=document.createElement('button');el.className='disk'+(RS.dead.has(d)?' dead'+(RS.rb?' rb':''):'');
+    let grp='';if(RS.l==='10')grp='зеркало '+'АБВ'[Math.floor(d/2)];if(RS.l==='1')grp='зеркало';
+    el.innerHTML=`<span class="dh"><span>Диск ${d+1}</span><span class="led" style="${RS.dead.has(d)?'background:var(--bad);box-shadow:none;animation:none':''}"></span></span><span class="grp">${grp}</span>`+
+      cells.map(c=>`<span class="dc ${c.t}">${c.c}</span>`).join('')+`<span class="cap">100 ГБ</span>`;
+    el.setAttribute('aria-label','Диск '+(d+1)+(RS.dead.has(d)?', отказ':', исправен'));
+    el.onclick=()=>{if(RS.rb)return;RS.dead.has(d)?RS.dead.delete(d):RS.dead.add(d);rRender()};box.append(el)});
+  // reading
+  const dead=RS.dead.size,k=LV[RS.l].k;let anyLost=false,anyRec=false;
+  const res=ch.map((c,i)=>{
+    if(k){const onDead=RS.dead.has(where[i][0]);if(!onDead)return'ok';if(dead<=k){anyRec=true;return'rec'}anyLost=true;return'lost'}
+    if(where[i].every(d=>RS.dead.has(d))){anyLost=true;return'lost'}return'ok';
+  });
+  $('#rRead').innerHTML=ch.map((c,i)=>`<span class="wc ${res[i]}">${res[i]==='lost'?'?':c}</span>`).join('');
+  const st=$('#rSt'),fix=$('#rFix');
+  if(RS.rb){st.textContent='Ребилд: пересчитываем данные на новый диск…';st.className='pill warn'}
+  else if(anyLost){st.textContent=RS.l==='0'?'Массив развалился: данные потеряны':'Слишком много отказов: данные потеряны';st.className='pill bad'}
+  else if(anyRec){st.textContent='Работает: недостающее вычисляется по контрольной сумме';st.className='pill warn'}
+  else if(dead){st.textContent='Работает на уцелевших копиях';st.className='pill warn'}
+  else{st.textContent='Все диски исправны';st.className='pill ok'}
+  fix.textContent=anyLost?'Начать заново':'Заменить диски';fix.disabled=RS.rb||(!dead&&!anyLost);RS.lost=anyLost;
+  const cap=LV[RS.l].cap(RS.n)*100;
+  $('#rFacts').innerHTML=`<span>Полезный объём: <b>${cap} ГБ</b> из ${RS.n*100} ГБ</span><span>Надёжность: ${LV[RS.l].tol}</span><span>Скорость: ${LV[RS.l].speed}</span>`;
+}
+$$('#rLv button').forEach(b=>b.onclick=()=>{if(RS.rb)return;RS.l=b.dataset.l;RS.n=LV[RS.l].ns[0];RS.dead.clear();rRender()});
+$('#rN').onchange=e=>{RS.n=+e.target.value;RS.dead.clear();rRender()};
+$('#rWord').oninput=e=>{const v=e.target.value.toUpperCase().replace(/\s/g,'').slice(0,8);RS.word=v||'ХЛЕБ';rRender()};
+$('#rFix').onclick=async()=>{
+  if(RS.lost){RS.dead.clear();rRender();$('#rSt').textContent='Без резервной копии данные не вернуть — массив создан заново';return}
+  RS.rb=true;rRender();await sleep(reduce?100:1800);RS.rb=false;RS.dead.clear();rRender();
+  $('#rSt').textContent='Ребилд завершён: все диски исправны';
+};
+rRender();
+
+/* ---------- start ---------- */
+const m=/^#s(\d+)$/.exec(location.hash);slides[0].classList.add('active');go(m?(+m[1]-1):0);fit();
+})();
+</script>
+
+</body>
+</html>
